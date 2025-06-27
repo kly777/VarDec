@@ -14,6 +14,7 @@ export const variableHintDecorationType = vscode.window.createTextEditorDecorati
 		margin: "0 10px 0 0",
 	},
 	rangeBehavior: vscode.DecorationRangeBehavior.OpenOpen,
+	overviewRulerLane: vscode.OverviewRulerLane.Right,
 });
 
 /**
