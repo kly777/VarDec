@@ -1,7 +1,6 @@
 // VSCode扩展主入口文件
 import * as vscode from "vscode";
 import { registerEventHandlers } from "./eventHandlers";
-import { updateVisualHints } from "./decorationManager";
 import { triggerVariableUpdate } from "./variableDecorator";
 
 /**

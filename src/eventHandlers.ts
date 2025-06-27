@@ -1,5 +1,4 @@
 import * as vscode from "vscode";
-import { updateVisualHints } from "./decorationManager";
 import { triggerVariableUpdate } from "./variableDecorator";
 
 /**
