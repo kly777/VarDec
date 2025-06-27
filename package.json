@@ -16,14 +16,6 @@
   "main": "./out/extension.js",
   "contributes": {
     "commands": [
-      {
-        "command": "vardec.helloWorld",
-        "title": "Hello World"
-      },
-      {
-        "command": "vardec.insertText",
-        "title": "Insert Text"
-      }
     ]
   },
   "scripts": {
