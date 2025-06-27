@@ -10,7 +10,7 @@ import { get } from "http";
 export const variableHintDecorationType = vscode.window.createTextEditorDecorationType({
   after: {
     contentText: "",
-    color: "#777777",
+    color: "#444444",
     fontWeight: "normal",
     fontStyle: "italic",
     margin: "0px 0px 0px 0px",
@@ -46,7 +46,7 @@ function getAst(document: vscode.TextDocument): ts.SourceFile | null {
  *          value: { declaredAt: 声明行号, usedAfter: [后续使用行号数组] }
  */
 function collectVariableUsage(ast: ts.SourceFile) {
-  const variableData: Record<string, { declaredAt: number; usedAfter: number[] }> = {};
+  const variableData: Record<string, { declaredAt: number; usedAt: number[] }> = {};
 
   /**
    * AST遍历函数，处理变量声明和使用节点
@@ -66,7 +66,7 @@ function collectVariableUsage(ast: ts.SourceFile) {
       if (!variableData[varName]) {
         variableData[varName] = {
           declaredAt: line,
-          usedAfter: []
+          usedAt: [line]
         };
       }
     }
@@ -81,7 +81,7 @@ function collectVariableUsage(ast: ts.SourceFile) {
             if (!variableData[elemName]) {
               variableData[elemName] = {
                 declaredAt: line,
-                usedAfter: []
+                usedAt: [line]
               };
             }
           }
@@ -93,7 +93,7 @@ function collectVariableUsage(ast: ts.SourceFile) {
         if (!variableData[paramName]) {
           variableData[paramName] = {
             declaredAt: line,
-            usedAfter: []
+            usedAt: [line]
           };
         }
       }
@@ -115,7 +115,7 @@ function collectVariableUsage(ast: ts.SourceFile) {
       const line = ast.getLineAndCharacterOfPosition(node.getStart()).line;
 
       if (variableData[varName] && variableData[varName].declaredAt < line) {
-        variableData[varName].usedAfter.push(line);
+        variableData[varName].usedAt.push(line);
       }
     }
 
@@ -163,8 +163,8 @@ export function updateVariableDecorations(editor: vscode.TextEditor | undefined)
           const scopeRange = getScopeRangeForLine(ast, line);
           if (scopeRange === null) { continue; }
           // 检查变量是否在当前行之后被使用
-          if (varInfo.usedAfter.some(useLine => useLine >= scopeRange.startLine && useLine <= line) &&
-            varInfo.usedAfter.some(useLine => useLine > line && useLine <= scopeRange.endLine)) {
+          if (varInfo.usedAt.some(useLine => useLine >= scopeRange.startLine && useLine <= line) &&
+            varInfo.usedAt.some(useLine => useLine > line && useLine <= scopeRange.endLine)) {
             variablesToShow.push(varName);
           }
         }
@@ -183,7 +183,7 @@ export function updateVariableDecorations(editor: vscode.TextEditor | undefined)
             range,
             renderOptions: {
               after: {
-                contentText: `↳ ${variablesToShow.join(', ')}`,
+                contentText: `↓ ${variablesToShow.join(', ')}`,
                 margin: `0px 0px 0px ${indent}`,
               }
             }
