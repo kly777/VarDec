@@ -28,10 +28,10 @@ export function activate(context: vscode.ExtensionContext) {
 
 	// 处理扩展激活时已打开的文件
 	vscode.window.visibleTextEditors.forEach(editor => {
-		if (editor && ['javascript', 'typescript'].includes(editor.document.languageId)) {
-			// updateVisualHints(editor); // 初始化行号装饰
-			triggerVariableUpdate(editor); // 初始化变量提示装饰
-		}
+	  if (editor && ['javascript', 'typescript', 'go'].includes(editor.document.languageId)) {
+	    // updateVisualHints(editor); // 初始化行号装饰
+	    triggerVariableUpdate(editor); // 初始化变量提示装饰
+	  }
 	});
 }
 
