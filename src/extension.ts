@@ -9,14 +9,15 @@ import { triggerVariableUpdate } from "./variableDecorator";
  */
 export function activate(context: vscode.ExtensionContext) {
 	// 注册所有事件监听器
+	// vscode.window.showInformationMessage("Vardec activated!");
 	registerEventHandlers(context);
 
 	// 注册命令：手动触发装饰更新
-	const disposable = vscode.commands.registerCommand('vardec.insertText',
+	const disposable = vscode.commands.registerCommand('vardec.decoration',
 		() => {
+			vscode.window.showInformationMessage("刷新装饰");
 			const editor = vscode.window.activeTextEditor;
 			if (editor) {
-				// updateVisualHints(editor); // 更新行号装饰
 				triggerVariableUpdate(editor); // 更新变量提示装饰
 			}
 		}
@@ -26,10 +27,10 @@ export function activate(context: vscode.ExtensionContext) {
 	// 扩展激活日志
 	console.log('扩展 "vardec" 已激活');
 
+
 	// 处理扩展激活时已打开的文件
 	vscode.window.visibleTextEditors.forEach(editor => {
 	  if (editor && ['javascript', 'typescript', 'go'].includes(editor.document.languageId)) {
-	    // updateVisualHints(editor); // 初始化行号装饰
 	    triggerVariableUpdate(editor); // 初始化变量提示装饰
 	  }
 	});
