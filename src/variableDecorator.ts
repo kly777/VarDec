@@ -7,7 +7,7 @@ import * as goParser from "./languages/go";
  */
 
 // 创建变量提示装饰器类型
-export const variableHintDecorationType = vscode.window.createTextEditorDecorationType({
+const variableHintDecorationType = vscode.window.createTextEditorDecorationType({
   after: {
     contentText: "",
     color: "#444444",
@@ -20,11 +20,13 @@ export const variableHintDecorationType = vscode.window.createTextEditorDecorati
 
 let updateTimeout: NodeJS.Timeout | null = null;
 
-/**
- * 使用TypeScript编译器API获取AST
- * @param document 文本文档对象
- * @returns AST源文件对象
- */
+interface LanguageParser {
+  getAst(document: vscode.TextDocument): any;
+  collectVariableUsage(ast: any): Record<string, { declaredAt: number; usedAt: number[]; }>;
+  getScopeRangeForLine(ast: any, line: number): { startLine: number; endLine: number } | null;
+}
+
+
 /**
  * 更新变量提示装饰器
  * @param editor 文本编辑器对象
@@ -33,92 +35,156 @@ export function updateVariableDecorations(editor: vscode.TextEditor | undefined)
   if (!editor) { return; }
 
   const document = editor.document;
-  const decorations: vscode.DecorationOptions[] = [];
+  const languageId = document.languageId;
 
   // 支持的语言列表
   const supportedLanguages = ['javascript', 'typescript', 'go'];
-  if (!supportedLanguages.includes(document.languageId)) {
+  if (!supportedLanguages.includes(languageId)) {
     editor.setDecorations(variableHintDecorationType, []);
     return;
   }
 
-
   try {
-    let variableData: Record<string, { declaredAt: number; usedAt: number[] }> = {};
-    let ast: any = null;
+    const tabSize = (editor.options.tabSize as number) || 4;
+    const parser: LanguageParser = languageId === 'go' ? goParser : tsParser;
 
-    if (document.languageId === 'go') {
-      ast = goParser.getAst(document);
-      if (!ast) { return; }
-      variableData = goParser.collectVariableUsage(ast);
-    } else {
-      ast = tsParser.getAst(document);
-      if (!ast) { return; }
-      variableData = tsParser.collectVariableUsage(ast);
+    // 1. 获取AST和变量数据
+    const { ast, variableData } = getAstAndVariableData(document, parser);
+    if (!ast) {
+      editor.setDecorations(variableHintDecorationType, []);
+      return;
     }
 
     console.log("variableData", variableData);
 
-    // 分析空白行
-    for (let line = 0; line < document.lineCount - 1; line++) {
-      const textLine = document.lineAt(line);
-      const nextTextLine = document.lineAt(line + 1);
-      if (textLine.isEmptyOrWhitespace && !nextTextLine.isEmptyOrWhitespace) {
-        const variablesToShow: string[] = [];
+    // 2. 生成空白行装饰器
+    const decorations = generateBlankLineDecorations(
+      document,
+      variableData,
+      parser,
+      tabSize,
+      ast
+    );
 
-        // const indentChars = nextTextLine.firstNonWhitespaceCharacterIndex;
-        const tabSize = editor.options.tabSize as number || 4;
-        const lineText = nextTextLine.text;
-        let indent = 0;
-
-        for (let i = 0; i < lineText.length; i++) {
-          const char = lineText[i];
-          if (char === ' ') { indent += 1; }
-          else if (char === '\t') { indent += tabSize; }
-          else { break; }
-        }
-
-        let scopeRange: { startLine: number; endLine: number } | null = null;
-
-        if (document.languageId === 'go') {
-          scopeRange = goParser.getScopeRangeForLine(ast, line);
-        } else {
-          scopeRange = tsParser.getScopeRangeForLine(ast, line);
-        }
-
-        if (scopeRange === null) { continue; }
-
-        for (const varName in variableData) {
-          const varInfo = variableData[varName];
-          // 检查变量是否在当前行之后被使用
-          if (varInfo.usedAt.some(useLine => useLine >= scopeRange!.startLine && useLine <= line) &&
-            varInfo.usedAt.some(useLine => useLine > line && useLine <= scopeRange!.endLine)) {
-            variablesToShow.push(varName);
-          }
-        }
-
-        if (variablesToShow.length > 0) {
-          const range = new vscode.Range(
-            new vscode.Position(line, 0),
-            new vscode.Position(line, 0)
-          );
-          decorations.push({
-            range,
-            renderOptions: {
-              after: {
-                contentText: `-${variablesToShow.length} ↓ ${variablesToShow.join(', ')} -`,
-                margin: `0px 0px 0px ${indent}ch`,
-              }
-            }
-          });
-        }
-      }
-    }
+    // 3. 应用装饰器
+    editor.setDecorations(variableHintDecorationType, decorations);
   } catch (e) {
     console.error("解析错误:", e);
+    vscode.window.showErrorMessage('变量装饰解析失败，请检查代码格式或扩展兼容性');
+    editor.setDecorations(variableHintDecorationType, []);
+  }
+}
+
+/**
+ * 获取AST和变量使用数据
+ */
+function getAstAndVariableData(
+  document: vscode.TextDocument,
+  parser: LanguageParser
+): { ast: any; variableData: Record<string, { declaredAt: number; usedAt: number[] }> } {
+  const ast = parser.getAst(document);
+  const variableData = ast ? parser.collectVariableUsage(ast) : {};
+  return { ast, variableData };
+}
+
+/**
+ * 生成空白行装饰器
+ */
+function generateBlankLineDecorations(
+  document: vscode.TextDocument,
+  variableData: Record<string, { declaredAt: number; usedAt: number[] }>,
+  parser: LanguageParser,
+  tabSize: number,
+  ast: any
+): vscode.DecorationOptions[] {
+  const decorations: vscode.DecorationOptions[] = [];
+
+  for (let line = 0; line < document.lineCount - 1; line++) {
+    const textLine = document.lineAt(line);
+    const nextTextLine = document.lineAt(line + 1);
+
+    if (textLine.isEmptyOrWhitespace && !nextTextLine.isEmptyOrWhitespace) {
+      const indent = calculateIndent(nextTextLine.text, tabSize);
+      const scopeRange = parser.getScopeRangeForLine(ast, line);
+
+      if (!scopeRange) { continue; }
+
+      const variablesToShow = findVariablesInScope(
+        variableData,
+        scopeRange,
+        line
+      );
+
+      if (variablesToShow.length > 0) {
+        decorations.push(createDecorationOption(line, variablesToShow, indent));
+      }
+    }
   }
 
-  editor.setDecorations(variableHintDecorationType, decorations);
+  return decorations;
+}
+
+/**
+ * 计算缩进量
+ */
+function calculateIndent(lineText: string, tabSize: number): number {
+  let indent = 0;
+  for (let i = 0; i < lineText.length; i++) {
+    const char = lineText[i];
+    if (char === ' ') { indent += 1; }
+    else if (char === '\t') { indent += tabSize; }
+    else { break; }
+  }
+  return indent;
+}
+
+/**
+ * 查找作用域内需要显示的变量
+ */
+function findVariablesInScope(
+  variableData: Record<string, { declaredAt: number; usedAt: number[] }>,
+  scopeRange: { startLine: number; endLine: number },
+  currentLine: number
+): string[] {
+  const variablesToShow: string[] = [];
+
+  for (const varName in variableData) {
+    const varInfo = variableData[varName];
+    if (
+      varInfo.usedAt.some(
+        (useLine) => useLine >= scopeRange.startLine && useLine <= currentLine
+      ) &&
+      varInfo.usedAt.some(
+        (useLine) => useLine > currentLine && useLine <= scopeRange.endLine
+      )
+    ) {
+      variablesToShow.push(varName);
+    }
+  }
+
+  return variablesToShow;
+}
+
+/**
+ * 创建装饰器选项
+ */
+function createDecorationOption(
+  line: number,
+  variablesToShow: string[],
+  indent: number
+): vscode.DecorationOptions {
+  return {
+    range: new vscode.Range(
+      new vscode.Position(line, 0),
+      new vscode.Position(line, 0)
+    ),
+    renderOptions: {
+      after: {
+        contentText: `↓ ${variablesToShow.length} - ${variablesToShow.join(', ')}`,
+        margin: `0px 0px 0px ${indent}ch`,
+      },
+    },
+  };
 }
 
 /**
