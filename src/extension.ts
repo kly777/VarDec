@@ -15,7 +15,7 @@ export function activate(context: vscode.ExtensionContext) {
 	// 注册命令：手动触发装饰更新
 	const disposable = vscode.commands.registerCommand('vardec.decoration',
 		() => {
-			vscode.window.showInformationMessage("刷新装饰");
+			vscode.window.showInformationMessage("刷新装饰222");
 			const editor = vscode.window.activeTextEditor;
 			if (editor) {
 				triggerVariableUpdate(editor); // 更新变量提示装饰
@@ -30,7 +30,9 @@ export function activate(context: vscode.ExtensionContext) {
 
 	// 处理扩展激活时已打开的文件
 	vscode.window.visibleTextEditors.forEach(editor => {
+
 	  if (editor && ['javascript', 'typescript', 'go'].includes(editor.document.languageId)) {
+
 	    triggerVariableUpdate(editor); // 初始化变量提示装饰
 	  }
 	});

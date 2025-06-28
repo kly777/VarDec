@@ -1,4 +1,5 @@
 import * as vscode from "vscode";
+import { VariableUsage } from "./type";
 
 /**
  * 使用go/parser获取Go语言的AST
@@ -25,35 +26,53 @@ export function getAst(document: vscode.TextDocument): any {
  * @param ast Go AST对象
  * @returns 变量使用数据
  */
-export function collectVariableUsage(ast: any) {
-  const variableData: Record<string, { declaredAt: number; usedAt: number[] }> = {};
+export function collectVariableUsage(ast: any): VariableUsage[] {
+  const variableData: VariableUsage[] = [];
   const lines = ast.lines;
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
 
+    // 处理变量声明 (var/const)
     const varMatch = line.match(/\b(var|const)\s+([\w, ]+)/);
     if (varMatch) {
       const vars = varMatch[2].split(',').map((v: string) => v.trim());
       vars.forEach((v: string) => {
         if (v) {
-          variableData[v] = { declaredAt: i, usedAt: [i] };
+          // 避免重复添加同一行声明的同一个变量
+          if (!variableData.some(item => item.name === v && item.declaredAt === i)) {
+            variableData.push({
+              name: v,
+              declaredAt: i,
+              usedAt: [i] // 初始化为声明行
+            });
+          }
         }
       });
     }
 
+    // 处理短变量声明 (:=)
     const shortVarMatch = line.match(/\b(\w+)\s*:=\s*[^=]/);
     if (shortVarMatch) {
       const varName = shortVarMatch[1];
-      variableData[varName] = { declaredAt: i, usedAt: [i] };
+      if (!variableData.some(item => item.name === varName && item.declaredAt === i)) {
+        variableData.push({
+          name: varName,
+          declaredAt: i,
+          usedAt: [i]
+        });
+      }
     }
 
+    // 收集变量使用
     const varUseRegex = /\b([a-zA-Z_][\w]*)\b(?!\s*[:=])/g;
     let useMatch;
     while ((useMatch = varUseRegex.exec(line)) !== null) {
       const varName = useMatch[1];
-      if (variableData[varName] && !variableData[varName].usedAt.includes(i)) {
-        variableData[varName].usedAt.push(i);
+      // 查找变量，如果找到且当前行尚未记录，则添加到 usedAfter
+      const variable = variableData.find(item => item.name === varName);
+      if (variable && !variable.usedAt.includes(i)) {
+        variable.usedAt.push(i);
       }
     }
   }

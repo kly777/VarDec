@@ -1,6 +1,7 @@
 import * as vscode from "vscode";
-import * as tsParser from "./languages/typescript";
+import * as tsParser from "./languages/ts";
 import * as goParser from "./languages/go";
+import { VariableUsage } from "./languages/type";
 
 /**
  * 变量装饰器 - 负责在空白行显示后续使用的变量提示
@@ -22,10 +23,9 @@ let updateTimeout: NodeJS.Timeout | null = null;
 
 interface LanguageParser {
   getAst(document: vscode.TextDocument): any;
-  collectVariableUsage(ast: any): Record<string, { declaredAt: number; usedAt: number[]; }>;
+  collectVariableUsage(ast: any): VariableUsage[];
   getScopeRangeForLine(ast: any, line: number): { startLine: number; endLine: number } | null;
 }
-
 
 /**
  * 更新变量提示装饰器
@@ -55,7 +55,7 @@ export function updateVariableDecorations(editor: vscode.TextEditor | undefined)
       return;
     }
 
-    console.log("variableData", variableData);
+    console.log("ASTvariableData", variableData);
 
     // 2. 生成空白行装饰器
     const decorations = generateBlankLineDecorations(
@@ -81,9 +81,9 @@ export function updateVariableDecorations(editor: vscode.TextEditor | undefined)
 function getAstAndVariableData(
   document: vscode.TextDocument,
   parser: LanguageParser
-): { ast: any; variableData: Record<string, { declaredAt: number; usedAt: number[] }> } {
+) {
   const ast = parser.getAst(document);
-  const variableData = ast ? parser.collectVariableUsage(ast) : {};
+  const variableData = ast ? parser.collectVariableUsage(ast) : [];
   return { ast, variableData };
 }
 
@@ -92,7 +92,7 @@ function getAstAndVariableData(
  */
 function generateBlankLineDecorations(
   document: vscode.TextDocument,
-  variableData: Record<string, { declaredAt: number; usedAt: number[] }>,
+  variableData: VariableUsage[],
   parser: LanguageParser,
   tabSize: number,
   ast: any
@@ -142,23 +142,30 @@ function calculateIndent(lineText: string, tabSize: number): number {
  * 查找作用域内需要显示的变量
  */
 function findVariablesInScope(
-  variableData: Record<string, { declaredAt: number; usedAt: number[] }>,
+  variableData: VariableUsage[],
   scopeRange: { startLine: number; endLine: number },
   currentLine: number
 ): string[] {
   const variablesToShow: string[] = [];
 
-  for (const varName in variableData) {
-    const varInfo = variableData[varName];
-    if (
-      varInfo.usedAt.some(
-        (useLine) => useLine >= scopeRange.startLine && useLine <= currentLine
-      ) &&
-      varInfo.usedAt.some(
-        (useLine) => useLine > currentLine && useLine <= scopeRange.endLine
-      )
-    ) {
-      variablesToShow.push(varName);
+  for (const varInfo of variableData) {
+    // 检查变量是否在当前作用域内声明
+    if (varInfo.declaredAt < scopeRange.startLine || varInfo.declaredAt > scopeRange.endLine) {
+      continue;
+    }
+
+    // 检查变量在当前行之前是否被使用过
+    const usedBefore = varInfo.usedAt.some(
+      (useLine) => useLine >= scopeRange.startLine && useLine <= currentLine
+    );
+
+    // 检查变量在当前行之后是否被使用过
+    const usedAfter = varInfo.usedAt.some(
+      (useLine) => useLine > currentLine && useLine <= scopeRange.endLine
+    );
+
+    if (usedBefore && usedAfter) {
+      variablesToShow.push(varInfo.name);
     }
   }
 
@@ -171,7 +178,8 @@ function findVariablesInScope(
 function createDecorationOption(
   line: number,
   variablesToShow: string[],
-  indent: number
+  indent: number,
+  // ast:any
 ): vscode.DecorationOptions {
   return {
     range: new vscode.Range(
