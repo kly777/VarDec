@@ -1,6 +1,8 @@
 import * as vscode from "vscode";
 import ts from "typescript";
 import { VariableUsage } from "./type";
+
+
 /**
  * 使用TypeScript编译器API获取AST
  * @param document 文本文档对象

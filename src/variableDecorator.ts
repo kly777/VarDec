@@ -17,6 +17,7 @@ const variableHintDecorationType = vscode.window.createTextEditorDecorationType(
     margin: "0px 0px 0px 0px",
   },
   rangeBehavior: vscode.DecorationRangeBehavior.ClosedClosed
+
 });
 
 let updateTimeout: NodeJS.Timeout | null = null;
@@ -36,7 +37,7 @@ export function updateVariableDecorations(editor: vscode.TextEditor | undefined)
 
   const document = editor.document;
   const languageId = document.languageId;
-
+  // vscode.window.showInformationMessage("w")
   // 支持的语言列表
   const supportedLanguages = ['javascript', 'typescript', 'go'];
   if (!supportedLanguages.includes(languageId)) {
@@ -63,7 +64,8 @@ export function updateVariableDecorations(editor: vscode.TextEditor | undefined)
       variableData,
       parser,
       tabSize,
-      ast
+      ast,
+      editor
     );
 
     // 3. 应用装饰器
@@ -95,7 +97,8 @@ function generateBlankLineDecorations(
   variableData: VariableUsage[],
   parser: LanguageParser,
   tabSize: number,
-  ast: any
+  ast: any,
+  editor: vscode.TextEditor
 ): vscode.DecorationOptions[] {
   const decorations: vscode.DecorationOptions[] = [];
 
@@ -116,7 +119,7 @@ function generateBlankLineDecorations(
       );
 
       if (variablesToShow.length > 0) {
-        decorations.push(createDecorationOption(line, variablesToShow, indent));
+        decorations.push(createDecorationOption(line, variablesToShow, indent, editor));
       }
     }
   }
@@ -180,19 +183,34 @@ function createDecorationOption(
   variablesToShow: string[],
   indent: number,
   // ast:any
+  editor: vscode.TextEditor,
 ): vscode.DecorationOptions {
-  return {
-    range: new vscode.Range(
-      new vscode.Position(line, 0),
-      new vscode.Position(line, 0)
-    ),
-    renderOptions: {
-      after: {
-        contentText: `↓ ${variablesToShow.length} - ${variablesToShow.join(', ')}`,
-        margin: `0px 0px 0px ${indent}ch`,
-      },
-    },
+
+  const cursorPosition = editor.selection.active;
+  const renderOptions = {
+    after: {
+      contentText: `↓ ${variablesToShow.length} - ${variablesToShow.join(', ')}`,
+      margin: `0px 0px 0px ${indent}ch`
+    }
   };
+  if (cursorPosition.line === line) {
+    return {
+      range: new vscode.Range(
+        cursorPosition, // 使用光标位置作为起点
+        cursorPosition  // 起点和终点相同（零长度范围）
+      ),
+      renderOptions
+    };
+  } else {
+    return {
+      range: new vscode.Range(
+        new vscode.Position(line, 0),
+        new vscode.Position(line, 0)
+      ),
+      renderOptions
+    };
+  }
+
 }
 
 /**
