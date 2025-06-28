@@ -16,7 +16,6 @@ export async function autoInsertHandler(editor: vscode.TextEditor) {
 	const autoInsertEnabled = config.get<boolean>('autoInsert', true);
 
 	if (autoInsertEnabled) {
-		// updateVisualHints(editor); // 更新行号装饰
 		triggerVariableUpdate(editor); // 更新变量提示装饰
 	}
 }
@@ -55,7 +54,6 @@ export function registerEventHandlers(context: vscode.ExtensionContext) {
 			console.log("document changed");
 			const editor = vscode.window.activeTextEditor;
 			if (editor?.document === event.document) {
-				// updateVisualHints(editor); // 更新行号装饰
 				triggerVariableUpdate(editor); // 更新变量提示装饰（带防抖）
 			}
 		})
@@ -66,7 +64,6 @@ export function registerEventHandlers(context: vscode.ExtensionContext) {
 		vscode.window.onDidChangeActiveTextEditor((editor) => {
 			console.log("editor changed");
 			if (editor && ['javascript', 'typescript'].includes(editor.document.languageId)) {
-				// updateVisualHints(editor); // 更新行号装饰
 				triggerVariableUpdate(editor); // 更新变量提示装饰（带防抖）
 			}
 		})
