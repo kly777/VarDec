@@ -28,7 +28,7 @@ export function registerEventHandlers(context: vscode.ExtensionContext) {
 	// 编辑器切换事件
 	context.subscriptions.push(
 		vscode.window.onDidChangeActiveTextEditor(async editor => {
-			if (editor && ['javascript', 'typescript'].includes(editor.document.languageId)) {
+			if (editor && ['javascript', 'typescript','go'].includes(editor.document.languageId)) {
 				await autoInsertHandler(editor);
 			}
 		})
@@ -37,7 +37,7 @@ export function registerEventHandlers(context: vscode.ExtensionContext) {
 	// 文档打开事件
 	context.subscriptions.push(
 		vscode.workspace.onDidOpenTextDocument(async document => {
-			if (['javascript', 'typescript'].includes(document.languageId)) {
+			if (['javascript', 'typescript','go'].includes(document.languageId)) {
 				const editor = vscode.window.visibleTextEditors.find(
 					e => e.document === document
 				);
@@ -63,7 +63,7 @@ export function registerEventHandlers(context: vscode.ExtensionContext) {
 	context.subscriptions.push(
 		vscode.window.onDidChangeActiveTextEditor((editor) => {
 			console.log("editor changed");
-			if (editor && ['javascript', 'typescript'].includes(editor.document.languageId)) {
+			if (editor && ['javascript', 'typescript','go'].includes(editor.document.languageId)) {
 				triggerVariableUpdate(editor); // 更新变量提示装饰（带防抖）
 			}
 		})

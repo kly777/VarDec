@@ -67,7 +67,6 @@ export function updateVariableDecorations(
       return;
     }
 
-    // console.log("ASTvariableData", variableData);
 
     // 2. 生成空白行装饰器
     const decorations = generateBlankLineDecorations(parser, ast, editor);
@@ -102,6 +101,8 @@ function generateBlankLineDecorations(
 ): vscode.DecorationOptions[] {
   // 收集当前文档的变量使用数据（若AST不存在则返回空数组）
   const variableData = ast ? parser.collectVariableUsage(ast) : [];
+
+  console.log("ASTvariableData", variableData);
   const decorations: vscode.DecorationOptions[] = [];
   // 获取编辑器缩进配置（默认4空格）
   const tabSize = (editor.options.tabSize as number) || 4;
@@ -118,11 +119,7 @@ function generateBlankLineDecorations(
     // 计算下一行的缩进级别（用于确定装饰器位置）
     const indent = calculateIndent(nextTextLine.text, tabSize);
     // 获取当前行对应的作用域范围
-    const scopeRange = parser.getScopeRangeForLine(ast, line);
-
-    if (!scopeRange) {
-      continue;
-    }
+    const scopeRange = parser.getScopeRangeForLine(ast, line) ?? { startLine: 0, endLine: document.lineCount - 1 };
 
     // 查找当前作用域内可用的变量
     const variablesToShow = findVariablesInScope(
