@@ -15,7 +15,7 @@ export function activate(context: vscode.ExtensionContext) {
 	// 注册命令：手动触发装饰更新
 	const disposable = vscode.commands.registerCommand('vardec.decoration',
 		() => {
-			vscode.window.showInformationMessage("刷新装饰222");
+			// vscode.window.showInformationMessage("刷新装饰222");
 			const editor = vscode.window.activeTextEditor;
 			if (editor) {
 				triggerVariableUpdate(editor); // 更新变量提示装饰
