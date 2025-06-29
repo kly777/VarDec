@@ -1,8 +1,8 @@
 {
   "name": "vardec",
   "displayName": "VarDec",
-  "description": "N",
-  "version": "0.0.6",
+  "description": "Information about variables in the current code stream",
+  "version": "0.0.7",
   "publisher": "KLY",
   "license": "Apache-2.0",
   "engines": {
@@ -33,6 +33,7 @@
     "type": "git",
     "url": "https://github.com/kly777/VarDec.git"
   },
+  "icon": "./image/icon.png",
   "scripts": {
     "compile": "npm run check-types && node esbuild.js",
     "check-types": "tsc --noEmit",

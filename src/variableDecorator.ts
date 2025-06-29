@@ -262,7 +262,7 @@ function createDecorationOption(
 }
 
 function stringVariable(v: variable) {
-  return `${v.name}: ${v.usedTime}`;
+  return `${v.name}:${v.usedTime}`;
 }
 
 /**
